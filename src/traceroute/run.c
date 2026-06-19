@@ -7,75 +7,54 @@
 #include <stdio.h> // printf()
 #include <string.h> // memcpy()
 
-static void update_rtt(t_ping_ctx *ctx, double rtt)
+static int probe_once(t_traceroute_ctx *ctx, int ttl, unsigned short seq, double *rtt_out)
 {
-	if (ctx->rtt_min < 0 || rtt < ctx->rtt_min)
-		ctx->rtt_min = rtt;
-	if (rtt > ctx->rtt_max)
-		ctx->rtt_max = rtt;
-	ctx->rtt_sum += rtt;
-	ctx->rtt_sum_sq += rtt * rtt;
-}
-
-static int ping_once(t_ping_ctx *ctx, unsigned short seq)
-{
-	t_icmp_pkt pkt;
+	t_icmp_pkt  pkt;
 	t_icmp_reply reply;
 	struct timeval tv_send;
-	double rtt;
 
+	setsockopt(ctx->sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
 	pkt = icmp_build(ctx, seq);
 	if (icmp_send(ctx, &pkt) != 0)
-		return (1);
-	ctx->send++;
-	if (ctx->flags & FLAG_FLOOD && !(ctx->flags & FLAG_QUIET))
-		printf(".");
+		return (-1); // erreur
 	if (icmp_recv(ctx, &reply) != 0)
-		return (0);
-	rtt = 0;
-	if (reply.pkt.hdr.type == ICMP_ECHOREPLY) {
-		ctx->received++;
-		memcpy(&tv_send, reply.pkt.data, sizeof(tv_send));
-		rtt = time_diff_ms(&tv_send, &reply.tv_recv);
-		update_rtt(ctx, rtt);
-	}
-	print_response(ctx, &reply, rtt);
-	return (0);
+		return (0); // timeout → afficher '*'
+	memcpy(&tv_send, reply.pkt.data, sizeof(tv_send));
+	*rtt_out = time_diff_ms(&tv_send, &reply.tv_recv);
+	if (reply.pkt.hdr.type == ICMP_ECHOREPLY)
+		return (2); // destination atteinte
+	return (1); // TIME_EXCEEDED, continuer
 }
 
-static int ping_loop(t_ping_ctx *ctx)
+int traceroute(t_traceroute_ctx *ctx)
 {
-	unsigned short seq;
-	struct timeval tv_before;
-	struct timeval tv_after;
+	int ttl;
+	int reached;
+	int probe;
+	double rtt;
+	int r;
 
-	seq = 0;
-	while (g_pingloop) {
-		gettimeofday(&tv_before, NULL);
-		if (ping_once(ctx, seq) != 0)
-			return (1);
-		seq++;
-		if (ctx->count && seq >= (unsigned short)ctx->count)
-			break ;
-		gettimeofday(&tv_after, NULL);
-		wait_remaining_time(ctx, &tv_before, &tv_after);
+	if (traceroute_setup(ctx) != 0)
+		return (1);
+
+	for (ttl = 1; ttl <= ctx->max_hops; ttl++) {
+		printf("%2d  ", ttl);
+		reached = 0;
+		for (probe = 0; probe < ctx->nprobes; probe++) {
+			rtt = 0;
+			printf("Before once\n");
+			r = probe_once(ctx, ttl, ctx->seq++, &rtt);
+			printf("After once\n");
+			if (r == 0)
+				printf(" *");
+			else if (r >= 1)
+				printf("  %.3f ms", rtt);
+			if (r == 2)
+				reached = 1;
+			printf("\n");
+		}
+		if (reached)
+			break;
 	}
 	return (0);
-}
-
-int ping_run(t_ping_ctx *ctx)
-{
-	int ret;
-
-	if (ping_setup(ctx) != 0)
-		return (1);
-	if (signal_setup() != 0) {
-		ping_cleanup(ctx);
-		return (1);
-	}
-	print_header(ctx);
-	ret = ping_loop(ctx);
-	print_stats(ctx);
-	ping_cleanup(ctx);
-	return (ret);
 }

@@ -3,7 +3,7 @@
 #include <stdio.h> // dprintf()
 #include <string.h> // strcmp()
 
-static int parse_hostname(t_ping_ctx *ctx, char *arg)
+static int parse_hostname(t_traceroute_ctx *ctx, char *arg)
 {
 	if (!ctx->hostname) {
 		ctx->hostname = arg;
@@ -13,55 +13,16 @@ static int parse_hostname(t_ping_ctx *ctx, char *arg)
 	return (1);
 }
 
-static int parse_flag(t_ping_ctx *ctx, int argc, char **argv, int *i)
+static int parse_flag(t_traceroute_ctx *ctx, int argc, char **argv, int *i)
 {
-	if (strcmp(argv[*i], "-?") == 0
+	(void)argc;
+	if (strcmp(argv[*i], "-h") == 0
 	           || strcmp(argv[*i], "--help") == 0)
 		ctx->flags |= FLAG_HELP;
-	else if (strcmp(argv[*i], "-c") == 0
-	        || strcmp(argv[*i], "--count") == 0) {
-		if (parse_value(ctx, argc, argv, i,
-		                parse_value_int, &ctx->count) != 0)
-			return (1);
-	}
-	else if (strcmp(argv[*i], "-i") == 0
-	         || strcmp(argv[*i], "--interval") == 0) {
-		if (parse_value(ctx, argc, argv, i,
-		                parse_value_double, &ctx->interval) != 0)
-			return (1);
-	}
-	else if (strcmp(argv[*i], "-t") == 0
-	        || strcmp(argv[*i], "--ttl") == 0) {
-		if (parse_value(ctx, argc, argv, i,
-		                parse_value_unsigned_char, &ctx->ttl) != 0)
-			return (1);
-	}
-	else if (strcmp(argv[*i], "-v") == 0
-	         || strcmp(argv[*i], "--verbose") == 0)
-		ctx->flags |= FLAG_VERBOSE;
-	else if (strcmp(argv[*i], "-f") == 0
-	         || strcmp(argv[*i], "--flood") == 0) {
-		ctx->flags |= FLAG_FLOOD;
-		ctx->interval = 0.01;
-	}
-	else if (strcmp(argv[*i], "-p") == 0
-	        || strcmp(argv[*i], "--pattern") == 0) {
-		if (parse_value(ctx, argc, argv, i,
-		                parse_value_pattern, &ctx->pattern) != 0)
-			return (1);
-	}
-	else if (strcmp(argv[*i], "-q") == 0
-	         || strcmp(argv[*i], "--quiet") == 0)
-		ctx->flags |= FLAG_QUIET;
-	else {
-		dprintf(2, "%s: Error: Option '%s' is invalid\n",
-		        ctx->progname, argv[*i]);
-		return (1);
-	}
 	return (0);
 }
 
-int parse_args(t_ping_ctx *ctx, int argc, char **argv)
+int parse_args(t_traceroute_ctx *ctx, int argc, char **argv)
 {
 	int i;
 

@@ -13,7 +13,7 @@
 #include <string.h> // memset()
 #include <time.h> // time_t
 
-static int resolve_hostname(t_ping_ctx *ctx)
+static int resolve_hostname(t_traceroute_ctx *ctx)
 {
 	struct addrinfo hints;
 	struct addrinfo *res;
@@ -33,37 +33,13 @@ static int resolve_hostname(t_ping_ctx *ctx)
 	return (0);
 }
 
-static int configure_socket(t_ping_ctx *ctx)
-{
-	struct timeval timeout;
-
-	if (setsockopt(ctx->sockfd, IPPROTO_IP, IP_TTL,
-	               &ctx->ttl, sizeof(ctx->ttl)) == -1) {
-		perror("setsockopt() TTL");
-		return (1);
-	}
-	timeout.tv_sec  = (time_t)ctx->interval;
-	timeout.tv_usec = (suseconds_t)((ctx->interval - timeout.tv_sec)
-	                                * 1000000.0);
-	if (setsockopt(ctx->sockfd, SOL_SOCKET, SO_RCVTIMEO,
-	               &timeout, sizeof(timeout)) == -1) {
-		perror("setsockopt() RCVTIMEO");
-		return (1);
-	}
-	return (0);
-}
-
-int ping_setup(t_ping_ctx *ctx)
+int traceroute_setup(t_traceroute_ctx *ctx)
 {
 	if (resolve_hostname(ctx) != 0)
 		return (1);
 	ctx->sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (ctx->sockfd == -1) {
 		perror("socket()");
-		return (1);
-	}
-	if (configure_socket(ctx) != 0) {
-		close(ctx->sockfd);
 		return (1);
 	}
 	return (0);

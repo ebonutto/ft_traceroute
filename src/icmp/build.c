@@ -17,13 +17,14 @@ static void icmp_init_hdr(t_icmp_hdr *hdr, unsigned short seq)
 	hdr->seq = htons(seq);
 }
 
-static void icmp_fill_data(t_ping_ctx *ctx, char *data)
+static void icmp_fill_data(t_traceroute_ctx *ctx, char *data)
 {
+	(void)ctx;
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
 	memcpy(data, &tv, sizeof(tv));
-	memset(data + sizeof(tv), ctx->pattern, DATA_SIZE - sizeof(tv));
+	memset(data + sizeof(tv), 0, DATA_SIZE - sizeof(tv));
 }
 
 static unsigned short icmp_checksum(void *data, size_t len)
@@ -44,7 +45,7 @@ static unsigned short icmp_checksum(void *data, size_t len)
 	return (~sum);
 }
 
-t_icmp_pkt icmp_build(t_ping_ctx *ctx, unsigned short seq)
+t_icmp_pkt icmp_build(t_traceroute_ctx *ctx, unsigned short seq)
 {
 	t_icmp_pkt pkt;
 
